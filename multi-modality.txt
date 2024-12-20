@@ -1,0 +1,61 @@
+create a file named "vision-model.ipynb" and mark down to Vision MMM
+
+import os
+import base64
+from dotenv import load_dotenv
+from langchain_openai import ChatOpenAI
+
+
+load_dotenv()
+
+openai_api_key = os.environ["OPENAI_API_KEY"]
+model_name = "gpt-4o"
+llm = ChatOpenAI(
+    model = model_name,
+    openai_api_key = openai_api_key,
+    temperature = 1,
+    max_tokens = 1000
+)
+
+
+
+def encode_image(image_path):
+    with open(image_path, "rb") as image_file:
+        return base64.b64encode(image_file.read()).decode("utf-8")
+
+image_path = "./USMortgageRate.png"
+base64_image = encode_image(image_path)
+
+message = [
+    {
+        "role": "system",
+        "content": "You are a helpful assistant that responsds in markdown, you're analyst who understands different types of graphs and charts."
+    },
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": "Describe the following image as an alternative text"
+            },
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": f"data:image/png;base64,{base64_image}"
+                }
+            }
+        ]
+    }
+]
+
+
+
+
+
+
+response_message = llm.invoke(message)
+
+
+
+print(response_message.content)
+
