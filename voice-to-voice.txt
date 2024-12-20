@@ -1,0 +1,153 @@
+create a folder named "voice-to-voice"
+
+and paste the following in requirements.txt
+
+audio-recorder-streamlit
+streamlit
+fastapi
+uvicorn
+python-dotenv
+datetime
+openai
+pathlib
+requests
+python-multipart
+
+
+create a file named "chatbot_function.py" and paste the following content
+
+import datetime
+from fastapi.responses import Response
+from openai import OpenAI
+import tempfile
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+openai_api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI()
+
+
+def speech_to_text_conversion(file_path):
+    """Converts audio format message to text using OpenAI's Whisper model."""
+    audio_file = open(
+        file_path, "rb")  # Opening the audio file in binary read mode
+    transcription = client.audio.transcriptions.create(
+        model="whisper-1",  # Model to use for transcription
+        file=audio_file  # Audio file to transcribe
+    )
+    return transcription.text
+
+
+def text_chat(text):
+    # Generate response using OpenAI
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": "Who won the world series in 2020?"},
+            {"role": "assistant",
+                "content": "The Los Angeles Dodgers won the World Series in 2020."},
+            {"role": "user", "content": text}
+        ])
+    return response.choices[0].message.content
+
+
+def text_to_speech_conversion(text):
+    """Converts text to audio format message using OpenAI's text-to-speech model - tts-1."""
+    if text:  # Check if converted_text is not empty
+        speech_file_path = datetime.datetime.now().strftime(
+            "%Y%m%d%H%M%S") + "_speech.webm"
+        # print("path--------->")
+
+        # Voice options : alloy, echo, fable, onyx, nova, and shimmer
+
+        # Models : tts-1, tts-1-hd. For real-time applications, the standard tts-1 model provides the lowest latency
+        # but at a lower quality than the tts-1-hd model. Due to the way the audio is generated,
+        # tts-1 is likely to generate content that has more static in certain situations than tts-1-hd.
+
+        response = client.audio.speech.create(
+            model="tts-1",  # Model to use for text-to-speech conversion
+            voice="fable",  # Voice to use for speech synthesis
+            input=text  # Text to convert to speech
+        )
+        '''response is binary data, when using strean_to_file function, it will write the binary data in a file'''
+        response.stream_to_file(
+            speech_file_path)  # Streaming synthesized speech to file
+        # Read the audio file as binary data
+        with open(speech_file_path, "rb") as audio_file:
+            audio_data = audio_file.read()
+        os.remove(speech_file_path)
+        return audio_data
+    else:
+        print("Error: converted_text is empty")
+
+
+
+
+create a file named "app.py" and paste the following content
+
+
+import streamlit as st
+from audio_recorder_streamlit import audio_recorder
+import tempfile
+import requests
+import chatbot_function
+
+
+st.title('Voice ChatBot')
+
+audio_bytes = audio_recorder(
+    text="Click to record",
+    recording_color="#e8b62c",
+    neutral_color="#6aa36f",
+    icon_name="microphone",
+    icon_size="3x",
+)
+
+if audio_bytes:
+    print(type(audio_bytes))
+
+    st.audio(audio_bytes, format="audio/wav")
+
+# Save audio to a temporary file
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio:
+        temp_audio.write(audio_bytes)
+        temp_audio_path = temp_audio.name
+
+    if st.button('Get Response'):
+        # Converting speech to text
+        converted_text_openai = chatbot_function.speech_to_text_conversion(
+            temp_audio_path)
+        print("Transcribed text", converted_text_openai)
+        st.write("Transcription:", converted_text_openai)
+        textmodel_response = chatbot_function.text_chat(
+            converted_text_openai)  # Generating actor's response
+        print("Response:", textmodel_response)
+        # Convert final text response to audio format and get the audio file path
+        audio_data = chatbot_function.text_to_speech_conversion(
+            textmodel_response)
+
+        # Creating temporary file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmpfile:
+            # contents = await file.read()  # Reading file contents asynchronously
+            # Writing file contents to temporary file
+            tmpfile.write(audio_data)
+            tmpfile_path = tmpfile.name
+            st.write("Response:", textmodel_response)
+            st.audio(tmpfile_path)
+
+
+
+
+
+in the terminal window,
+
+ensure that you're in voice-to-voice folder
+
+streamlit run app.py
+
+
+
+
+https://2d20a877ac385962f7.gradio.live/
