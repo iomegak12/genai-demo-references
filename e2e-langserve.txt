@@ -1,0 +1,128 @@
+End-to-End Development with LangServer
+
+create a folder named "endtoend-langserve"
+
+modify the requirements.txt to add the following packages
+
+langserve[all]
+langchain-cli
+poetry
+
+
+in the terminal window, 
+
+cd endtoend-langserve
+
+langchain app new .
+
+
+
+in the terminal window,
+
+in the endtoend-langserve folder
+
+poetry add "langserve[all]" langchain-openai python-decouple
+
+    make sure that pyproject.toml is updated with
+
+    pydantic="*" in the tool poetry dependencies section
+
+
+open server.py and replace the following code with the existing code.
+
+
+from decouple import config
+from fastapi import FastAPI
+from langchain_openai import ChatOpenAI
+from langchain.prompts import ChatPromptTemplate
+from langserve import add_routes
+
+
+app = FastAPI()
+
+model = ChatOpenAI(openai_api_key=config("OPENAI_API_KEY"))
+prompt = ChatPromptTemplate.from_template(
+    "Give me a summary about {topic} in a paragraph or less.")
+
+chain = prompt | model
+
+add_routes(app, chain, path="/openai")
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)
+
+
+
+add the following snippet to the openai initialization
+
+
+    model="gpt-3.5-turbo-0125",
+
+
+
+
+update the pyproject.toml dependencies to include the following
+
+httpx = "0.27.0"
+
+
+poetry lock --no-update
+
+poetry install
+
+langchain serve
+
+
+
+
+open server.py
+
+import os
+
+
+
+    host = os.environ["HOST"]
+    port = os.environ["PORT"]
+
+    uvicorn.run(app, host=host, port=port)
+
+
+Open Dockerfile, and update the last 3 lines with the following
+
+
+ARG PORT
+
+EXPOSE ${PORT:-8000}
+
+CMD exec uvicorn app.server:app --host 0.0.0.0 --port ${PORT:-8000}
+
+
+
+
+after you register with hub.docker.com ...
+
+in the terminal window,
+
+ensure that you're in endtoend-langserve folder
+
+
+
+docker build -t xxxxx/endtoend-lcdemo .
+
+
+docker login
+
+
+docker push xxxx/endtoend-lcdemo
+
+
+
+
+docker run -d -t -p 8000:8000 -e HOST=0.0.0.0 -e PORT=8000 -e OPENAI_API_KEY=xxxxxxx --name lanchain-container xxxxxx/endtoend-lcdemo
+
+
+docker ps
+
+docker logs container-id-2-characters
