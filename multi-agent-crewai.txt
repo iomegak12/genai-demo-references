@@ -1,0 +1,343 @@
+create a folder named "multi-agents"
+
+and add a new file "requirements.txt" and paste the following content
+
+python-dotenv
+crewai[tools]
+langchain
+langchain-community
+langchain-core
+
+
+install  all dependency packages using pip in the terminal
+
+create a file named ".env" in the multi-agents folder
+
+SERPER_API_KEY=xxxxxxxxxxxx
+OPENAI_API_KEY=xxxxxx
+
+
+
+close all vs code and terminal windows
+
+open a new terminal window
+
+cd \lc-demonstrations\multi-agents
+
+python -m venv env
+
+env\scripts\activate
+
+pip install -r requirements.txt
+
+in the new terminal window,
+
+multipass launch --name trainingvmv2 --cpus 4 --memory 8G --disk 16G jammy
+
+
+multipass list
+
+multipass shell trainingvmv2
+
+in the vm shell,
+
+sudo apt update
+
+sudo DEBIAN_FRONTEND=noninteractive apt-get -yq install make build-essential libssl-dev zlib1g-dev libbz2-dev libreadline-dev libsqlite3-dev wget curl llvm libncurses5-dev libncursesw5-dev xz-utils tk-dev libffi-dev liblzma-dev
+
+
+sudo apt nstall -y python3.10-venv
+
+
+
+mkdir multi-agents
+
+cd multi-agents
+
+python3 -m venv env
+
+source ./env/bin/activate
+
+nano requirements.txt
+
+right click mouse and paste the following
+
+python-dotenv
+crewai[tools]
+langchain
+langchain-community
+langchain-core
+
+
+CTRL+O to save
+
+CTRL+X to exit
+
+Press Enter to exit ...
+
+
+pip install -r requirements.txt
+
+
+
+nano tasks.py
+
+
+paste the following content
+
+
+from crewai import Task
+from textwrap import dedent
+
+
+class Tasks():
+    def research_company_culture_task(self, agent, company_description, company_domain):
+        return Task(
+            description=dedent(f""" \
+                Analyze the provided company website and the hiring manager's company's domain {company_domain},
+                description: "{company_description}". Focus on understanding the company's culture, values, and mission.
+                Identify unique selling points and specific projects or achievements highlighted on the site.
+                Compile a report summarizing these insights, specifically how they can be leveraged in a job posting to attract the right candidates.
+                """),
+            expected_output=dedent(f""" \
+                A comprehensive report detailing the company's culture, values, and mission,
+                along with specific selling points relevant to the job role. Suggestions on incorporating these insights into the job posting should be included.
+                """),
+            agent=agent)
+
+    def research_role_requirements_task(self, agent, hiring_needs):
+        return Task(
+            description=dedent(f""" \
+                Based on the hiring manager's needs: "{hiring_needs}", identify the key skills, experiences, and qualities the ideal
+                candidate should possess for the role. Consider the company's current projects, its competitive landscape,
+                and industry trends. Prepare a list of recommended job requirements and qualifications that align with the
+                company's needs and values.
+                """),
+            expected_output=dedent(f""" \
+                A list of recommended skills, experiences, and qualities for the ideal candidate, aligned with the company's culture,
+                ongoing projects, and the specific role's requirements.
+                """),
+            agent=agent)
+
+    def draft_job_posting_task(self, agent, company_description, hiring_needs, specific_benefits):
+        return Task(
+            description=dedent(f""" \
+                Draft a job posting for the role described by the hiring manager: "{hiring_needs}".
+                Use the insights on "{company_description}" to start with a compelling introduction, followed by a
+                detailed role description, responsibilities, and required skills and qualifications. Ensure the tone aligns
+                with the company's culture and incorporate any unique benefits or opportunities offered by the company.
+                Specfic benefits: "{specific_benefits}"
+                """),
+            expected_output=dedent(f""" \
+                A detailed, engaging job posting that includes an introduction, role description, responsibilities,
+                requirements, and unique company benefits. The tone should resonate with the company's culture and
+                values, aimed at attracting the right candidates.
+                """),
+            agent=agent)
+
+    def review_and_edit_job_posting_task(self, agent, hiring_needs):
+        return Task(
+            description=dedent(f""" \
+                Review the draft job posting for the role: "{hiring_needs}". Check for clarity, engagement,
+                grammatical accuracy, and alignment with the company's culture and values. Edit and refine the content,
+                ensuring it speaks directly to the desired candidates and accurately reflects the role's unique
+                benefits and opportunities. Provide feedback for any necessary revisions.
+                """),
+            expected_output=dedent(f""" \
+                A polished, error-free job posting that is clear, engaging, and perfectly aligned with the company's culture and
+                values. Feedback on potential improvements and final approval for publishing. Formated in markdown.
+                """),
+            agent=agent)
+
+    def industry_analysis_task(self, agent, company_domain):
+        return Task(
+            description=dedent(f""" \
+                Conduct an in-depth analysis of the industry related to the company's domain: "{company_domain}".
+                Investigate current trends, challenges, and opportunities within the industry, utilizing market reports,
+                recent developments, and expert opinions. Assess how these factors could impact the role being hired for and
+                the overall attractiveness of the position to potential candidates.
+
+                Consider how the company's position within this industry and its response to these trends could be
+                leveraged to attract top talent. Include in your report how the role contributes to addressing industry
+                challenges or seizing opportunities.
+                """),
+            expected_output=dedent(f""" \
+                A detailed analysis report that identifies major industry trends, challenges, and opportunities relevant to the
+                company's domain and the specific job role. This report should provide strategic insights on positioning the job
+                role and the company as an attractive choice for potential candidates.
+                """),
+            agent=agent)
+
+
+
+
+create a file named "agents.py"
+
+and add the following content  
+
+
+
+from crewai import Agent
+from crewai_tools import WebsiteSearchTool, SerperDevTool, FileReadTool
+
+web_search_tool = WebsiteSearchTool()
+serper_dev_tool = SerperDevTool()
+file_read_tool = FileReadTool(
+    file_path="job_description_example.md",
+    description="A tool to read the job description example file"
+)
+
+
+class Agents():
+    def research_agent(self):
+        return Agent(
+            role="Research Analyst",
+            goal="Analyze the company website and provided description to extract insights on culture, values and specific needs",
+            tools=[web_search_tool, serper_dev_tool],
+            backstory="Expert in analyzing company cultures and identifying  key values and needs from various sources including websites and brief descriptions",
+            verbose=True
+        )
+
+    def writer_agent(self):
+        return Agent(
+            role="Job Description Writer",
+            goal="Use insights from the research analyst to create a detailed, engaging and awesome job posting",
+            tools=[web_search_tool, serper_dev_tool, file_read_tool],
+            backstory="Skilled in crafting a compelling job description that outstand or resonate with the company values and attract the right candidates",
+            verbose=True
+        )
+
+    def review_agent(self):
+        return Agent(
+            role="Review and Editing Specialist",
+            goal="Review the job posting for clarify, engagement, grammatical accuracy and alignment with company values and refine it to ensure it's perfect",
+            tools=[web_search_tool, serper_dev_tool, file_read_tool],
+            backstory="A strict and  meticulous editor with an eye for detail, ensuring every piece of content is clear, engaging and gramatically perfect",
+            verbose=True
+        )
+
+
+
+create a file named main.py and add the following content
+
+
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from crewai import Crew
+from tasks import Tasks
+from agents import Agents
+
+tasks = Tasks()
+agents = Agents()
+
+company_description = input("What's the company description? \n")
+company_domain = input("What's the company domain?\n")
+hiring_needs = input("What are all the hiring needs?\n")
+specific_benefits = input("What are all the specific benefits you offer?\n")
+
+research_agent = agents.research_agent()
+writer_agent = agents.writer_agent()
+reviewer_agent = agents.review_agent()
+
+research_company_culture_task = tasks.research_company_culture_task(
+    research_agent, company_description, company_domain)
+industry_analysis_task = tasks.industry_analysis_task(
+    research_agent, company_domain)
+research_role_requirements_task = tasks.research_role_requirements_task(
+    research_agent, hiring_needs)
+draft_job_posting_task = tasks.draft_job_posting_task(
+    writer_agent, company_description, hiring_needs, specific_benefits)
+review_edit_job_posting_task = tasks.review_and_edit_job_posting_task(
+    reviewer_agent, hiring_needs)
+
+process_crew = Crew(
+    agents=[research_agent, writer_agent, reviewer_agent],
+    tasks=[
+        research_company_culture_task,
+        industry_analysis_task,
+        research_role_requirements_task,
+        draft_job_posting_task,
+        review_edit_job_posting_task
+    ]
+)
+
+result = process_crew.kickoff()
+
+print("Job Posting Creation Process is Completed ...")
+print("Final Job Posting ...")
+
+print(result)
+
+
+
+create a file named .env
+
+SERPER_API_KEY=xxxxxxxxxxx
+OPENAI_API_KEY=xxxxxxxxxxxxxxx
+
+
+
+create file named "job_description_example.md" and paste the following content
+
+
+# Amazing Job Description Example
+
+## Company Overview
+At InnovateTech, we're at the forefront of digital transformation, leveraging cutting-edge technologies to create impactful solutions. Our culture thrives on innovation, collaboration, and a commitment to excellence. Join us to be a part of a dynamic team shaping the future of tech.
+
+## Job Title: Senior Software Engineer
+
+### Location
+Remote - Global Team
+
+### Job Summary
+As a Senior Software Engineer at InnovateTech, you'll lead the development of scalable software solutions that revolutionize how businesses interact with technology. You'll collaborate with cross-functional teams to drive projects from conception to deployment, ensuring high-quality and innovative outcomes.
+
+### Responsibilities
+- Design, develop, and implement high-quality software solutions that align with our strategic direction.
+- Lead technical discussions and decision-making processes to drive technology forward.
+- Mentor junior engineers, providing guidance and support to foster a culture of excellence and growth.
+- Collaborate with stakeholders across the company to understand requirements and deliver beyond expectations.
+- Stay abreast of industry trends and emerging technologies to incorporate best practices into our workflows.
+
+### Requirements
+- Bachelor's degree in Computer Science, Engineering, or related field.
+- 5+ years of experience in software development, with a strong background in [Specific Technology/Programming Language].
+- Proven track record of leading successful projects from inception to completion.
+- Excellent problem-solving skills and a passion for technology.
+- Strong communication and teamwork abilities.
+
+### Benefits
+- Competitive salary and equity package.
+- Comprehensive health, dental, and vision insurance.
+- Unlimited PTO to promote work-life balance.
+- Remote work flexibility.
+- Professional development stipends.
+- Monthly wellness allowances.
+- Inclusive and dynamic work culture.
+
+### How to Apply
+Please submit your resume, cover letter, and any relevant portfolio links to careers@innovatetech.com with the subject "Senior Software Engineer Application". We're excited to hear from you!
+
+---
+
+InnovateTech is an equal opportunity employer. We celebrate diversity and are committed to creating an inclusive environment for all employees.
+
+
+
+
+in the shell,
+
+python3  main.py
+
+
+At CrewAI, we're at the forefront of digital transformation, leveraging cutting-edge technologies to create impactful solutions. Our culture thrives on innovation, collaboration, and a commitment to excellence. Join us to be a part of a dynamic team shaping the future of tech.
+
+https://crewai.com
+
+Generative AI Development Engineer
+
+Medical Insurance, More than 20 days of leave in a year, Car and Vehicle Loans, Free International and Continental Food, Remote Work Options
